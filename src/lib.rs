@@ -209,7 +209,7 @@ impl APlusBSqrtQ {
     #[must_use]
     pub fn recip(self) -> Self {
         match self {
-            APlusBSqrtQ::Rational(a) => Self::from_rational(GenericFraction::one() / a) /* has to check that this does not lead to infinity */,
+            APlusBSqrtQ::Rational(a) => Self::from_rational(GenericFraction::one() / a), /* has to check that this does not lead to infinity */
             APlusBSqrtQ::Irrational { a, b, q } => {
                 // ans = 1 / [a + b * sqrt(q)]
                 //     = [a - b * sqrt(q)] / [a^2 - b^2 * q]
@@ -259,6 +259,44 @@ impl APlusBSqrtQ {
                 }
             }
         }
+    }
+}
+
+impl num_traits::identities::Zero for APlusBSqrtQ {
+    fn zero() -> Self {
+        Self::Rational(GenericFraction::zero())
+    }
+
+    fn is_zero(&self) -> bool {
+        self == &Self::zero()
+    }
+}
+
+impl num_traits::identities::One for APlusBSqrtQ {
+    fn one() -> Self {
+        Self::Rational(GenericFraction::one())
+    }
+}
+
+impl num_traits::ops::inv::Inv for APlusBSqrtQ {
+    type Output = Self;
+
+    fn inv(self) -> Self::Output {
+        self.recip()
+    }
+}
+
+impl num_traits::ops::mul_add::MulAdd for APlusBSqrtQ {
+    type Output = Self;
+
+    fn mul_add(self, a: Self, b: Self) -> Self::Output {
+        self * a + b
+    }
+}
+
+impl num_traits::ops::mul_add::MulAddAssign for APlusBSqrtQ {
+    fn mul_add_assign(&mut self, a: Self, b: Self) {
+        *self = (self.clone() * a) + b;
     }
 }
 
