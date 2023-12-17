@@ -9,8 +9,8 @@ pub enum APlusBSqrtQ {
     Rational(BigFraction),
     Irrational {
         a: BigFraction,
-        b: BigFraction,
-        q: BigUint, // non-perfect-square
+        b: BigFraction, // non-zero
+        q: BigUint,     // non-perfect-square
     },
 }
 
@@ -21,13 +21,31 @@ fn is_perfect_square(n: &BigUint) -> bool {
 }
 
 impl APlusBSqrtQ {
+    /// # Panics
+    /// Panics when either `a` or `b` is Infinity or NaN
     #[must_use]
     pub fn new(a: BigFraction, b: BigFraction, q: BigUint) -> Self {
+        assert!(
+            !(a.is_nan() || a.is_infinite() || b.is_nan() || b.is_infinite()),
+            "Cannot have either Infinity or NaN in `a` or `b`"
+        );
+
         if b == BigFraction::zero() || is_perfect_square(&q) {
             Self::Rational(a + b * q.sqrt())
         } else {
             Self::Irrational { a, b, q }
         }
+    }
+
+    #[must_use]
+    /// # Panics
+    /// Panics when the input is Infinity or NaN
+    pub fn from_rational(a: BigFraction) -> Self {
+        assert!(
+            !(a.is_nan() || a.is_infinite()),
+            "Cannot have either Infinity or NaN in `a` or `b`"
+        );
+        Self::Rational(a)
     }
 
     #[must_use]
@@ -191,7 +209,7 @@ impl APlusBSqrtQ {
     #[must_use]
     pub fn recip(self) -> Self {
         match self {
-            APlusBSqrtQ::Rational(a) => Self::Rational(GenericFraction::one() / a),
+            APlusBSqrtQ::Rational(a) => Self::from_rational(GenericFraction::one() / a) /* has to check that this does not lead to infinity */,
             APlusBSqrtQ::Irrational { a, b, q } => {
                 // ans = 1 / [a + b * sqrt(q)]
                 //     = [a - b * sqrt(q)] / [a^2 - b^2 * q]
