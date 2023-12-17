@@ -6,6 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-fraction = "0.14.0"
+fraction = {version = "0.14.0", features = ["with-approx"] }
 num-bigint = "0.4.4"
 num-traits = "0.2.17"

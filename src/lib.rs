@@ -2,7 +2,7 @@
 use fraction::{prelude::BigFraction, GenericFraction, Integer, Zero};
 use num_bigint::BigUint;
 use num_traits::One;
-use std::ops;
+use std::{cmp::Ordering, ops};
 
 #[derive(Debug, Clone)]
 pub enum APlusBSqrtQ {
@@ -79,6 +79,8 @@ impl PartialEq for APlusBSqrtQ {
         }
     }
 }
+
+impl Eq for APlusBSqrtQ {}
 
 impl ops::Neg for APlusBSqrtQ {
     type Output = Self;
@@ -260,6 +262,97 @@ impl APlusBSqrtQ {
             }
         }
     }
+
+    #[must_use]
+    pub fn abs(self) -> Self {
+        if self.is_positive() {
+            self
+        } else {
+            -self
+        }
+    }
+}
+
+impl std::cmp::Ord for APlusBSqrtQ {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self == other {
+            Ordering::Equal
+        } else {
+            let diff = self.clone() - other.clone();
+            if diff.is_positive() {
+                Ordering::Greater
+            } else {
+                Ordering::Less
+            }
+        }
+    }
+}
+
+impl std::cmp::PartialOrd for APlusBSqrtQ {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl APlusBSqrtQ {
+    #[must_use]
+    pub fn floor(self) -> GenericFraction<BigUint> {
+        match &self {
+            APlusBSqrtQ::Rational(a) => a.floor(),
+            APlusBSqrtQ::Irrational { a, b, q } => {
+                let bbq = b.clone() * b.clone() * q.clone();
+
+                // n is an integer such that the only possible values for Self::floor() are n-1, n and n+1.
+                let n = if bbq >= GenericFraction::one() {
+                    // |b|√q >= 1
+                    let u = bbq.sqrt(1);
+                    // The square of the approximation is accurate up to 1 decimal digits.
+                    // Thus
+                    // |u * u - bbq| < 0.1
+                    // | u - |b|√q | | u + |b|√q | < 0.1
+                    // Since u > √0.9 and |b|√q >= 1,
+                    // | u - |b|√q | < 0.1 / (1+√0.9) < 0.052
+
+                    let approx = if b.sign() == Some(fraction::Sign::Plus) {
+                        a + u
+                    } else {
+                        a - u
+                    };
+
+                    // let n = approx.floor();
+                    // n <= approx < n+1
+                    // approx is up to only 0.052 away from the true value
+                    // n-1 < approx - 0.052 < a+b√q < approx + 0.052 < n+2
+                    // Hence the only possible values for Self::floor() are n-1, n and n+1.
+
+                    approx.floor()
+                } else {
+                    // -1< b√q < 1
+                    // let n = a.floor();
+                    // n <= a < n+1
+                    // n-1 < a+b√q < n+2
+                    // Hence the only possible values for Self::floor() are n-1, n and n+1.
+                    a.floor()
+                };
+
+                if Self::Rational(n.clone() + GenericFraction::one()) <= self.clone() {
+                    if self.clone()
+                        >= Self::Rational(
+                            n.clone() + GenericFraction::one() + GenericFraction::one(),
+                        )
+                    {
+                        unreachable!("oh no! there is a bug and actually self >= n+2")
+                    }
+                    return n + GenericFraction::one();
+                } else if Self::Rational(n.clone()) <= self.clone() {
+                    return n;
+                } else if Self::Rational(n.clone() - GenericFraction::one()) <= self.clone() {
+                    return n - GenericFraction::one();
+                }
+                unreachable!("oh no! there is a bug and actually self < n-1")
+            }
+        }
+    }
 }
 
 impl num_traits::identities::Zero for APlusBSqrtQ {
@@ -391,4 +484,21 @@ fn dividing_gives_unity() {
             BigUint::zero()
         )
     );
+}
+
+#[test]
+fn floor() {
+    let small_negative = APlusBSqrtQ::new(
+        BigFraction::new(14142u32, 10000u32),
+        -BigFraction::new(1u8, 1u8),
+        BigUint::new(vec![2u32]),
+    );
+
+    let small_positive = APlusBSqrtQ::new(
+        BigFraction::new(14143u32, 10000u32),
+        -BigFraction::new(1u8, 1u8),
+        BigUint::new(vec![2u32]),
+    );
+    assert_eq!(-GenericFraction::one(), small_negative.floor());
+    assert_eq!(GenericFraction::zero(), small_positive.floor());
 }
