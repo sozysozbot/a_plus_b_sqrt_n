@@ -3,7 +3,7 @@
 version = 3
 
 [[package]]
-name = "a_plus_b_sqrt_q"
+name = "a_plus_b_sqrt_n"
 version = "0.1.0"
 dependencies = [
  "fraction",

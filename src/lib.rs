@@ -5,35 +5,35 @@ use num_traits::One;
 use std::{cmp::Ordering, ops};
 
 #[derive(Debug, Clone)]
-pub enum APlusBSqrtQ {
+pub enum APlusBSqrtN {
     Rational(BigFraction),
     Irrational {
         a: BigFraction,
         b: BigFraction, // non-zero
-        q: BigUint,     // non-perfect-square
+        n: BigUint,     // non-perfect-square
     },
 }
 
 #[must_use]
-fn is_perfect_square(m: &BigUint) -> bool {
-    let sqrt_n_floor = m.sqrt();
-    &(sqrt_n_floor.clone() * sqrt_n_floor) == m
+fn is_perfect_square(n: &BigUint) -> bool {
+    let sqrt_n_floor = n.sqrt();
+    &(sqrt_n_floor.clone() * sqrt_n_floor) == n
 }
 
-impl APlusBSqrtQ {
+impl APlusBSqrtN {
     /// # Panics
     /// Panics when either `a` or `b` is Infinity or NaN
     #[must_use]
-    pub fn new(a: BigFraction, b: BigFraction, q: BigUint) -> Self {
+    pub fn new(a: BigFraction, b: BigFraction, n: BigUint) -> Self {
         assert!(
             !(a.is_nan() || a.is_infinite() || b.is_nan() || b.is_infinite()),
             "Cannot have either Infinity or NaN in `a` or `b`"
         );
 
-        if b == BigFraction::zero() || is_perfect_square(&q) {
-            Self::Rational(a + b * q.sqrt())
+        if b == BigFraction::zero() || is_perfect_square(&n) {
+            Self::Rational(a + b * n.sqrt())
         } else {
-            Self::Irrational { a, b, q }
+            Self::Irrational { a, b, n }
         }
     }
 
@@ -50,90 +50,90 @@ impl APlusBSqrtQ {
 
     #[must_use]
     pub const fn is_rational(&self) -> bool {
-        matches!(self, APlusBSqrtQ::Rational(_))
+        matches!(self, APlusBSqrtN::Rational(_))
     }
 }
 
-impl PartialEq for APlusBSqrtQ {
+impl PartialEq for APlusBSqrtN {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (APlusBSqrtQ::Rational(a1), APlusBSqrtQ::Rational(a2)) => a1 == a2,
-            (APlusBSqrtQ::Rational(_), APlusBSqrtQ::Irrational { .. })
-            | (APlusBSqrtQ::Irrational { .. }, APlusBSqrtQ::Rational(_)) => false,
+            (APlusBSqrtN::Rational(a1), APlusBSqrtN::Rational(a2)) => a1 == a2,
+            (APlusBSqrtN::Rational(_), APlusBSqrtN::Irrational { .. })
+            | (APlusBSqrtN::Irrational { .. }, APlusBSqrtN::Rational(_)) => false,
             (
-                APlusBSqrtQ::Irrational {
+                APlusBSqrtN::Irrational {
                     a: a1,
                     b: b1,
-                    q: q1,
+                    n: n1,
                 },
-                APlusBSqrtQ::Irrational {
+                APlusBSqrtN::Irrational {
                     a: a2,
                     b: b2,
-                    q: q2,
+                    n: n2,
                 },
             ) => {
                 a1 == a2
-                    && (b1.clone() * b1.clone() * q1.clone()
-                        == b2.clone() * b2.clone() * q2.clone())
+                    && (b1.clone() * b1.clone() * n1.clone()
+                        == b2.clone() * b2.clone() * n2.clone())
             }
         }
     }
 }
 
-impl Eq for APlusBSqrtQ {}
+impl Eq for APlusBSqrtN {}
 
-impl ops::Neg for APlusBSqrtQ {
+impl ops::Neg for APlusBSqrtN {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
         match self {
-            APlusBSqrtQ::Rational(a) => Self::Rational(-a),
-            APlusBSqrtQ::Irrational { a, b, q } => Self::new(-a, -b, q),
+            APlusBSqrtN::Rational(a) => Self::Rational(-a),
+            APlusBSqrtN::Irrational { a, b, n } => Self::new(-a, -b, n),
         }
     }
 }
 
-impl ops::Add for APlusBSqrtQ {
+impl ops::Add for APlusBSqrtN {
     type Output = Self;
     fn add(self, other: Self) -> Self::Output {
         match (self, other) {
-            (APlusBSqrtQ::Rational(a1), APlusBSqrtQ::Rational(a2)) => Self::Rational(a1 + a2),
-            (APlusBSqrtQ::Irrational { a, b, q }, APlusBSqrtQ::Rational(a2))
-            | (APlusBSqrtQ::Rational(a2), APlusBSqrtQ::Irrational { a, b, q }) => {
-                Self::new(a + a2, b, q)
+            (APlusBSqrtN::Rational(a1), APlusBSqrtN::Rational(a2)) => Self::Rational(a1 + a2),
+            (APlusBSqrtN::Irrational { a, b, n }, APlusBSqrtN::Rational(a2))
+            | (APlusBSqrtN::Rational(a2), APlusBSqrtN::Irrational { a, b, n }) => {
+                Self::new(a + a2, b, n)
             }
 
             (
-                APlusBSqrtQ::Irrational {
+                APlusBSqrtN::Irrational {
                     a: a1,
                     b: b1,
-                    q: q1,
+                    n: n1,
                 },
-                APlusBSqrtQ::Irrational {
+                APlusBSqrtN::Irrational {
                     a: a2,
                     b: b2,
-                    q: q2,
+                    n: n2,
                 },
             ) => {
-                if is_perfect_square(&(q1.clone() * q2.clone())) {
-                    // ans = a1 + b1 sqrt(q1) + a2 + b2 sqrt(q2)
-                    // Let q1 = s * s * q
-                    // Let q2 = t * t * q
-                    // Then q3 = gcd(q1, q2) = u * u * q
-                    let q3 = q1.gcd(&q2);
-                    let s_over_u_squared = q1 / q3.clone();
-                    let t_over_u_squared = q2 / q3.clone();
+                if is_perfect_square(&(n1.clone() * n2.clone())) {
+                    // ans = a1 + b1 sqrt(n1) + a2 + b2 sqrt(n2)
+                    // Let n1 = s * s * n
+                    // Let n2 = t * t * n
+                    // Then n3 = gcd(n1, n2) = u * u * n
+                    let n3 = n1.gcd(&n2);
+                    let s_over_u_squared = n1 / n3.clone();
+                    let t_over_u_squared = n2 / n3.clone();
                     assert!(is_perfect_square(&s_over_u_squared));
                     assert!(is_perfect_square(&t_over_u_squared));
                     let s_over_u = s_over_u_squared.sqrt();
                     let t_over_u = t_over_u_squared.sqrt();
 
-                    // ans = (a1 + a2) + [b1 * (s/u) + b2 * (t/u)] sqrt(q3)
-                    Self::new(a1 + a2, b1 * s_over_u + b2 * t_over_u, q3)
+                    // ans = (a1 + a2) + [b1 * (s/u) + b2 * (t/u)] sqrt(n3)
+                    Self::new(a1 + a2, b1 * s_over_u + b2 * t_over_u, n3)
                 } else {
                     panic!(
                         "Cannot add: sqrt({}) and sqrt({}) are incompatible",
-                        &q1, &q2
+                        &n1, &n2
                     )
                 }
             }
@@ -141,7 +141,7 @@ impl ops::Add for APlusBSqrtQ {
     }
 }
 
-impl ops::Sub for APlusBSqrtQ {
+impl ops::Sub for APlusBSqrtN {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -149,57 +149,57 @@ impl ops::Sub for APlusBSqrtQ {
     }
 }
 
-impl ops::Mul for APlusBSqrtQ {
+impl ops::Mul for APlusBSqrtN {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (APlusBSqrtQ::Rational(a1), APlusBSqrtQ::Rational(a2)) => Self::Rational(a1 * a2),
-            (APlusBSqrtQ::Rational(multiplier), APlusBSqrtQ::Irrational { a, b, q })
-            | (APlusBSqrtQ::Irrational { a, b, q }, APlusBSqrtQ::Rational(multiplier)) => {
-                Self::new(a * multiplier.clone(), b * multiplier, q)
+            (APlusBSqrtN::Rational(a1), APlusBSqrtN::Rational(a2)) => Self::Rational(a1 * a2),
+            (APlusBSqrtN::Rational(multiplier), APlusBSqrtN::Irrational { a, b, n })
+            | (APlusBSqrtN::Irrational { a, b, n }, APlusBSqrtN::Rational(multiplier)) => {
+                Self::new(a * multiplier.clone(), b * multiplier, n)
             }
             (
-                APlusBSqrtQ::Irrational {
+                APlusBSqrtN::Irrational {
                     a: a1,
                     b: b1,
-                    q: q1,
+                    n: n1,
                 },
-                APlusBSqrtQ::Irrational {
+                APlusBSqrtN::Irrational {
                     a: a2,
                     b: b2,
-                    q: q2,
+                    n: n2,
                 },
             ) => {
-                if is_perfect_square(&(q1.clone() * q2.clone())) {
-                    // ans = [a1 + b1 sqrt(q1)] [a2 + b2 sqrt(q2)]
-                    // Let q1 = s * s * q
-                    // Let q2 = t * t * q
-                    // Then q3 = gcd(q1, q2) = u * u * q
-                    let q3 = q1.gcd(&q2);
-                    let s_over_u_squared = q1 / q3.clone();
-                    let t_over_u_squared = q2 / q3.clone();
+                if is_perfect_square(&(n1.clone() * n2.clone())) {
+                    // ans = [a1 + b1 sqrt(n1)] [a2 + b2 sqrt(n2)]
+                    // Let n1 = s * s * n
+                    // Let n2 = t * t * n
+                    // Then n3 = gcd(n1, n2) = u * u * n
+                    let n3 = n1.gcd(&n2);
+                    let s_over_u_squared = n1 / n3.clone();
+                    let t_over_u_squared = n2 / n3.clone();
                     assert!(is_perfect_square(&s_over_u_squared));
                     assert!(is_perfect_square(&t_over_u_squared));
                     let s_over_u = s_over_u_squared.sqrt();
                     let t_over_u = t_over_u_squared.sqrt();
 
-                    // ans = [a1 + b1 * s/u * sqrt(q3)] [a2 + b2 * t/u * sqrt(q3)]
-                    //     = [a1*a2   +   b1 * s/u * q3 * b2 * t/u] + [a1 * b2 * t/u   +   a2 * b1 * s/u] sqrt(q3)
+                    // ans = [a1 + b1 * s/u * sqrt(n3)] [a2 + b2 * t/u * sqrt(n3)]
+                    //     = [a1*a2   +   b1 * s/u * n3 * b2 * t/u] + [a1 * b2 * t/u   +   a2 * b1 * s/u] sqrt(n3)
                     Self::new(
                         a1.clone() * a2.clone()
                             + b1.clone()
                                 * b2.clone()
                                 * s_over_u.clone()
-                                * q3.clone()
+                                * n3.clone()
                                 * t_over_u.clone(),
                         a1 * b2 * t_over_u + a2 * b1 * s_over_u,
-                        q3,
+                        n3,
                     )
                 } else {
                     panic!(
                         "Cannot add: sqrt({}) and sqrt({}) are incompatible",
-                        &q1, &q2
+                        &n1, &n2
                     )
                 }
             }
@@ -207,22 +207,22 @@ impl ops::Mul for APlusBSqrtQ {
     }
 }
 
-impl APlusBSqrtQ {
+impl APlusBSqrtN {
     #[must_use]
     pub fn recip(self) -> Self {
         match self {
-            APlusBSqrtQ::Rational(a) => Self::from_rational(GenericFraction::one() / a), /* has to check that this does not lead to infinity */
-            APlusBSqrtQ::Irrational { a, b, q } => {
-                // ans = 1 / [a + b * sqrt(q)]
-                //     = [a - b * sqrt(q)] / [a^2 - b^2 * q]
-                let dividing_factor = a.clone() * a.clone() - b.clone() * b.clone() * q.clone();
-                Self::new(a / dividing_factor.clone(), -b / dividing_factor, q)
+            APlusBSqrtN::Rational(a) => Self::from_rational(GenericFraction::one() / a), /* has to check that this does not lead to infinity */
+            APlusBSqrtN::Irrational { a, b, n } => {
+                // ans = 1 / [a + b * sqrt(n)]
+                //     = [a - b * sqrt(n)] / [a^2 - b^2 * n]
+                let dividing_factor = a.clone() * a.clone() - b.clone() * b.clone() * n.clone();
+                Self::new(a / dividing_factor.clone(), -b / dividing_factor, n)
             }
         }
     }
 }
 
-impl ops::Div for APlusBSqrtQ {
+impl ops::Div for APlusBSqrtN {
     type Output = Self;
 
     #[allow(clippy::suspicious_arithmetic_impl)]
@@ -231,33 +231,33 @@ impl ops::Div for APlusBSqrtQ {
     }
 }
 
-impl APlusBSqrtQ {
+impl APlusBSqrtN {
     #[must_use]
     pub fn is_positive(&self) -> bool {
         match self {
-            APlusBSqrtQ::Rational(a) => a > &BigFraction::zero(),
-            APlusBSqrtQ::Irrational { a, b, q } => {
+            APlusBSqrtN::Rational(a) => a > &BigFraction::zero(),
+            APlusBSqrtN::Irrational { a, b, n } => {
                 if b > &BigFraction::zero() {
                     if a >= &BigFraction::zero() {
                         return true;
                     }
                     // We know that -a > 0
-                    // We want to check whether b * sqrt(q) > -a > 0
-                    b.clone() * b.clone() * q.clone() > a.clone() * a.clone()
+                    // We want to check whether b * sqrt(n) > -a > 0
+                    b.clone() * b.clone() * n.clone() > a.clone() * a.clone()
                 } else {
                     // b is assumed to be non-zero
                     // Thus, we know that b < 0
 
-                    // We know that (-b) * sqrt(q) > 0
-                    // We want to check whether a + b * sqrt(q) > 0
-                    // Thus, we want to know whether a > (-b) * sqrt(q) > 0
+                    // We know that (-b) * sqrt(n) > 0
+                    // We want to check whether a + b * sqrt(n) > 0
+                    // Thus, we want to know whether a > (-b) * sqrt(n) > 0
 
                     // We first need to verify that a is indeed greater than 0
                     if a <= &BigFraction::zero() {
                         return false;
                     }
 
-                    a.clone() * a.clone() > b.clone() * b.clone() * q.clone()
+                    a.clone() * a.clone() > b.clone() * b.clone() * n.clone()
                 }
             }
         }
@@ -273,7 +273,7 @@ impl APlusBSqrtQ {
     }
 }
 
-impl std::cmp::Ord for APlusBSqrtQ {
+impl std::cmp::Ord for APlusBSqrtN {
     fn cmp(&self, other: &Self) -> Ordering {
         if self == other {
             Ordering::Equal
@@ -288,30 +288,30 @@ impl std::cmp::Ord for APlusBSqrtQ {
     }
 }
 
-impl std::cmp::PartialOrd for APlusBSqrtQ {
+impl std::cmp::PartialOrd for APlusBSqrtN {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl APlusBSqrtQ {
+impl APlusBSqrtN {
     #[must_use]
     pub fn floor(self) -> GenericFraction<BigUint> {
         match &self {
-            APlusBSqrtQ::Rational(a) => a.floor(),
-            APlusBSqrtQ::Irrational { a, b, q } => {
-                let bbq = b.clone() * b.clone() * q.clone();
+            APlusBSqrtN::Rational(a) => a.floor(),
+            APlusBSqrtN::Irrational { a, b, n } => {
+                let b2n = b.clone() * b.clone() * n.clone();
 
                 // m is an integer such that the only possible values for Self::floor() are m-1, m and m+1.
-                let m = if bbq >= GenericFraction::one() {
-                    // |b|√q >= 1
-                    let u = bbq.sqrt(1);
+                let m = if b2n >= GenericFraction::one() {
+                    // |b|√n >= 1
+                    let u = b2n.sqrt(1);
                     // The square of the approximation is accurate up to 1 decimal digits.
                     // Thus
-                    // |u * u - bbq| < 0.1
-                    // | u - |b|√q | | u + |b|√q | < 0.1
-                    // Since u > √0.9 and |b|√q >= 1,
-                    // | u - |b|√q | < 0.1 / (1+√0.9) < 0.052
+                    // |u * u - b*b*n| < 0.1
+                    // | u - |b|√n | | u + |b|√n | < 0.1
+                    // Since u > √0.9 and |b|√n >= 1,
+                    // | u - |b|√n | < 0.1 / (1+√0.9) < 0.052
 
                     let approx = if b.sign() == Some(fraction::Sign::Plus) {
                         a + u
@@ -327,7 +327,7 @@ impl APlusBSqrtQ {
 
                     approx.floor()
                 } else {
-                    // -1< b√q < 1
+                    // -1 < b√q < 1
                     // let m = a.floor();
                     // m <= a < m+1
                     // m-1 < a+b√q < m+2
@@ -355,7 +355,7 @@ impl APlusBSqrtQ {
     }
 }
 
-impl num_traits::identities::Zero for APlusBSqrtQ {
+impl num_traits::identities::Zero for APlusBSqrtN {
     fn zero() -> Self {
         Self::Rational(GenericFraction::zero())
     }
@@ -365,13 +365,13 @@ impl num_traits::identities::Zero for APlusBSqrtQ {
     }
 }
 
-impl num_traits::identities::One for APlusBSqrtQ {
+impl num_traits::identities::One for APlusBSqrtN {
     fn one() -> Self {
         Self::Rational(GenericFraction::one())
     }
 }
 
-impl num_traits::ops::inv::Inv for APlusBSqrtQ {
+impl num_traits::ops::inv::Inv for APlusBSqrtN {
     type Output = Self;
 
     fn inv(self) -> Self::Output {
@@ -379,7 +379,7 @@ impl num_traits::ops::inv::Inv for APlusBSqrtQ {
     }
 }
 
-impl num_traits::ops::mul_add::MulAdd for APlusBSqrtQ {
+impl num_traits::ops::mul_add::MulAdd for APlusBSqrtN {
     type Output = Self;
 
     fn mul_add(self, a: Self, b: Self) -> Self::Output {
@@ -387,7 +387,7 @@ impl num_traits::ops::mul_add::MulAdd for APlusBSqrtQ {
     }
 }
 
-impl num_traits::ops::mul_add::MulAddAssign for APlusBSqrtQ {
+impl num_traits::ops::mul_add::MulAddAssign for APlusBSqrtN {
     fn mul_add_assign(&mut self, a: Self, b: Self) {
         *self = (self.clone() * a) + b;
     }
@@ -395,16 +395,16 @@ impl num_traits::ops::mul_add::MulAddAssign for APlusBSqrtQ {
 
 #[test]
 fn eq() {
-    use crate::APlusBSqrtQ;
+    use crate::APlusBSqrtN;
     use fraction::prelude::BigFraction;
     use num_bigint::BigUint;
-    let silver = APlusBSqrtQ::new(
+    let silver = APlusBSqrtN::new(
         BigFraction::new(1u8, 1u8),
         BigFraction::new(1u8, 1u8),
         BigUint::new(vec![2u32]),
     );
 
-    let silver2 = APlusBSqrtQ::new(
+    let silver2 = APlusBSqrtN::new(
         BigFraction::new(1u8, 1u8),
         BigFraction::new(1u8, 2u8),
         BigUint::new(vec![8u32]),
@@ -414,17 +414,17 @@ fn eq() {
 
 #[test]
 fn addition() {
-    use crate::APlusBSqrtQ;
+    use crate::APlusBSqrtN;
     use fraction::prelude::BigFraction;
     use num_bigint::BigUint;
-    let silver = APlusBSqrtQ::new(
+    let silver = APlusBSqrtN::new(
         BigFraction::new(1u8, 1u8),
         BigFraction::new(1u8, 1u8),
         BigUint::new(vec![2u32]),
     );
     assert_eq!(
         silver.clone() + silver.clone(),
-        APlusBSqrtQ::new(
+        APlusBSqrtN::new(
             BigFraction::new(2u8, 1u8),
             BigFraction::new(2u8, 1u8),
             BigUint::new(vec![2u32]),
@@ -434,10 +434,10 @@ fn addition() {
 
 #[test]
 fn is_positive() {
-    use crate::APlusBSqrtQ;
+    use crate::APlusBSqrtN;
     use fraction::prelude::BigFraction;
     use num_bigint::BigUint;
-    let fourteen_minus_root_195 = APlusBSqrtQ::new(
+    let fourteen_minus_root_195 = APlusBSqrtN::new(
         BigFraction::new(14u8, 1u8),
         -BigFraction::new(1u8, 1u8),
         BigUint::new(vec![195u32]),
@@ -448,17 +448,17 @@ fn is_positive() {
 
 #[test]
 fn multiplication() {
-    use crate::APlusBSqrtQ;
+    use crate::APlusBSqrtN;
     use fraction::prelude::BigFraction;
     use num_bigint::BigUint;
-    let sqrt2 = APlusBSqrtQ::new(
+    let sqrt2 = APlusBSqrtN::new(
         BigFraction::new(0u8, 1u8),
         BigFraction::new(1u8, 1u8),
         BigUint::new(vec![2u32]),
     );
     assert_eq!(
         sqrt2.clone() * sqrt2.clone(),
-        APlusBSqrtQ::new(
+        APlusBSqrtN::new(
             BigFraction::new(2u8, 1u8),
             BigFraction::new(2u8, 1u8),
             BigUint::zero(),
@@ -468,17 +468,17 @@ fn multiplication() {
 
 #[test]
 fn dividing_gives_unity() {
-    use crate::APlusBSqrtQ;
+    use crate::APlusBSqrtN;
     use fraction::{prelude::BigFraction, Zero};
     use num_bigint::BigUint;
-    let x = APlusBSqrtQ::new(
+    let x = APlusBSqrtN::new(
         BigFraction::new(1u8, 1u8),
         BigFraction::new(1u8, 1u8),
         BigUint::new(vec![2u32]),
     );
     assert_eq!(
         x.clone() / x.clone(),
-        APlusBSqrtQ::new(
+        APlusBSqrtN::new(
             BigFraction::new(1u8, 1u8),
             BigFraction::new(1u8, 1u8),
             BigUint::zero()
@@ -488,13 +488,13 @@ fn dividing_gives_unity() {
 
 #[test]
 fn floor() {
-    let small_negative = APlusBSqrtQ::new(
+    let small_negative = APlusBSqrtN::new(
         BigFraction::new(14142u32, 10000u32),
         -BigFraction::new(1u8, 1u8),
         BigUint::new(vec![2u32]),
     );
 
-    let small_positive = APlusBSqrtQ::new(
+    let small_positive = APlusBSqrtN::new(
         BigFraction::new(14143u32, 10000u32),
         -BigFraction::new(1u8, 1u8),
         BigUint::new(vec![2u32]),
