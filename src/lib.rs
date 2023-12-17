@@ -163,6 +163,54 @@ impl ops::Div for APlusBSqrtQ {
     }
 }
 
+impl APlusBSqrtQ {
+    pub fn is_positive(&self) -> bool {
+        if self.q == BigUint::zero() {
+            self.a > BigFraction::zero()
+        } else if self.b > BigFraction::zero() {
+            if self.a >= BigFraction::zero() {
+                return true;
+            }
+            // We know that -a > 0
+            // We want to check whether b * sqrt(q) > -a > 0
+            self.b.clone() * self.b.clone() * self.q.clone() > self.a.clone() * self.a.clone()
+        } else {
+            // self.b is assumed to be non-zero
+            // Thus, we know that self.b < 0
+
+            // We know that (-b) * sqrt(q) > 0
+            // We want to check whether a + b * sqrt(q) > 0
+            // Thus, we want to know whether a > (-b) * sqrt(q) > 0
+
+            // We first need to verify that a is indeed greater than 0
+            if self.a <= BigFraction::zero() {
+                return false;
+            }
+
+            self.a.clone() * self.a.clone() >  self.b.clone() * self.b.clone() * self.q.clone()
+        }
+    }
+}
+
+#[test]
+fn eq() {
+    use crate::APlusBSqrtQ;
+    use fraction::prelude::BigFraction;
+    use num_bigint::BigUint;
+    let silver = APlusBSqrtQ::new(
+        BigFraction::new(1u8, 1u8),
+        BigFraction::new(1u8, 1u8),
+        BigUint::new(vec![2u32]),
+    );
+
+    let silver2 = APlusBSqrtQ::new(
+        BigFraction::new(1u8, 1u8),
+        BigFraction::new(1u8, 2u8),
+        BigUint::new(vec![8u32]),
+    );
+    assert_eq!(silver, silver2)
+}
+
 #[test]
 fn addition() {
     use crate::APlusBSqrtQ;
@@ -181,6 +229,20 @@ fn addition() {
             BigUint::new(vec![2u32]),
         )
     )
+}
+
+#[test]
+fn is_positive() {
+    use crate::APlusBSqrtQ;
+    use fraction::prelude::BigFraction;
+    use num_bigint::BigUint;
+    let fourteen_minus_root_195 = APlusBSqrtQ::new(
+        BigFraction::new(14u8, 1u8),
+        -BigFraction::new(1u8, 1u8),
+        BigUint::new(vec![195u32]),
+    );
+
+    assert!(fourteen_minus_root_195.is_positive())
 }
 
 #[test]
