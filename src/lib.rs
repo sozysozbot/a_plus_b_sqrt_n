@@ -73,6 +73,7 @@ impl PartialEq for APlusBSqrtN {
                 },
             ) => {
                 a1 == a2
+                    && (b1 * b2).is_sign_positive() /* required so as not to render 1+√2 and 1-√2 equal */
                     && (b1.clone() * b1.clone() * n1.clone()
                         == b2.clone() * b2.clone() * n2.clone())
             }
@@ -352,6 +353,11 @@ impl APlusBSqrtN {
                 unreachable!("oh no! there is a bug and actually self < m-1")
             }
         }
+    }
+
+    #[must_use]
+    pub fn ceil(self) -> GenericFraction<BigUint> {
+        -((-self).floor())
     }
 }
 
