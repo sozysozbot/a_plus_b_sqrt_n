@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 fraction = "0.14.0"
 num-bigint = "0.4.4"
+num-traits = "0.2.17"
