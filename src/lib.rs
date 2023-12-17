@@ -15,9 +15,9 @@ pub enum APlusBSqrtQ {
 }
 
 #[must_use]
-fn is_perfect_square(n: &BigUint) -> bool {
-    let sqrt_n_floor = n.sqrt();
-    &(sqrt_n_floor.clone() * sqrt_n_floor) == n
+fn is_perfect_square(m: &BigUint) -> bool {
+    let sqrt_n_floor = m.sqrt();
+    &(sqrt_n_floor.clone() * sqrt_n_floor) == m
 }
 
 impl APlusBSqrtQ {
@@ -302,8 +302,8 @@ impl APlusBSqrtQ {
             APlusBSqrtQ::Irrational { a, b, q } => {
                 let bbq = b.clone() * b.clone() * q.clone();
 
-                // n is an integer such that the only possible values for Self::floor() are n-1, n and n+1.
-                let n = if bbq >= GenericFraction::one() {
+                // m is an integer such that the only possible values for Self::floor() are m-1, m and m+1.
+                let m = if bbq >= GenericFraction::one() {
                     // |b|√q >= 1
                     let u = bbq.sqrt(1);
                     // The square of the approximation is accurate up to 1 decimal digits.
@@ -319,37 +319,37 @@ impl APlusBSqrtQ {
                         a - u
                     };
 
-                    // let n = approx.floor();
-                    // n <= approx < n+1
+                    // let m = approx.floor();
+                    // m <= approx < m+1
                     // approx is up to only 0.052 away from the true value
-                    // n-1 < approx - 0.052 < a+b√q < approx + 0.052 < n+2
-                    // Hence the only possible values for Self::floor() are n-1, n and n+1.
+                    // m-1 < approx - 0.052 < a+b√q < approx + 0.052 < m+2
+                    // Hence the only possible values for Self::floor() are m-1, m and m+1.
 
                     approx.floor()
                 } else {
                     // -1< b√q < 1
-                    // let n = a.floor();
-                    // n <= a < n+1
-                    // n-1 < a+b√q < n+2
-                    // Hence the only possible values for Self::floor() are n-1, n and n+1.
+                    // let m = a.floor();
+                    // m <= a < m+1
+                    // m-1 < a+b√q < m+2
+                    // Hence the only possible values for Self::floor() are m-1, m and m+1.
                     a.floor()
                 };
 
-                if Self::Rational(n.clone() + GenericFraction::one()) <= self.clone() {
+                if Self::Rational(m.clone() + GenericFraction::one()) <= self.clone() {
                     if self.clone()
                         >= Self::Rational(
-                            n.clone() + GenericFraction::one() + GenericFraction::one(),
+                            m.clone() + GenericFraction::one() + GenericFraction::one(),
                         )
                     {
-                        unreachable!("oh no! there is a bug and actually self >= n+2")
+                        unreachable!("oh no! there is a bug and actually self >= m+2")
                     }
-                    return n + GenericFraction::one();
-                } else if Self::Rational(n.clone()) <= self.clone() {
-                    return n;
-                } else if Self::Rational(n.clone() - GenericFraction::one()) <= self.clone() {
-                    return n - GenericFraction::one();
+                    return m + GenericFraction::one();
+                } else if Self::Rational(m.clone()) <= self.clone() {
+                    return m;
+                } else if Self::Rational(m.clone() - GenericFraction::one()) <= self.clone() {
+                    return m - GenericFraction::one();
                 }
-                unreachable!("oh no! there is a bug and actually self < n-1")
+                unreachable!("oh no! there is a bug and actually self < m-1")
             }
         }
     }
