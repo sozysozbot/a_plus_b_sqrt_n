@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 fraction = {version = "0.15.1", features = ["with-approx"] }
 num-bigint = "0.4.4"
-num-traits = "0.2.18"
+num-traits = "0.2.19"
